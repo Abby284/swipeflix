@@ -13,7 +13,7 @@
       font-family: 'Poppins', sans-serif;
     }
     body {
-      background: linear-gradient(to bottom, #111827, #000);
+      background: linear-gradient(160deg, #0f172a, #1e293b);
       color: white;
       display: flex;
       flex-direction: column;
@@ -30,9 +30,10 @@
     }
     .card-container {
       position: relative;
-      width: 320px;
-      height: 480px;
-      overflow: visible;
+      width: 90vw;
+      max-width: 320px;
+      height: 75vh;
+      max-height: 480px;
       perspective: 1000px;
     }
     .card {
@@ -42,26 +43,25 @@
       border-radius: 20px;
       overflow: hidden;
       box-shadow: 0 15px 30px rgba(0,0,0,0.7);
-      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+      transition: transform 0.4s ease, opacity 0.3s ease;
       background: #1f2937;
       cursor: grab;
       user-select: none;
       display: flex;
       flex-direction: column;
     }
-    .card:active {
-      cursor: grabbing;
-    }
     .card img {
       width: 100%;
       height: 60%;
       object-fit: cover;
       border-bottom: 1px solid #333;
-      flex-shrink: 0;
     }
     .card-info {
       padding: 15px 20px;
       color: white;
+      backdrop-filter: blur(10px);
+      background: rgba(0, 0, 0, 0.6);
+      border-top: 1px solid rgba(255,255,255,0.1);
       flex-grow: 1;
       display: flex;
       flex-direction: column;
@@ -71,70 +71,39 @@
       font-weight: 600;
       font-size: 1.5rem;
       margin-bottom: 10px;
-      user-select: text;
     }
-    .card-info p {
+    .movie-overview {
       font-size: 0.9rem;
       line-height: 1.3;
       color: #d1d5db;
-      flex-grow: 1;
+      max-height: 3.6em;
       overflow: hidden;
       transition: max-height 0.3s ease;
-      max-height: 3.6em;
-      user-select: text;
     }
-    .card-info p.expanded {
+    .movie-overview.expanded {
       max-height: 100vh;
     }
-    .expand-btn {
-      background: transparent;
+    .read-more {
+      background: none;
       border: none;
-      color: #3b82f6;
+      color: #60a5fa;
       font-weight: 600;
       cursor: pointer;
       padding: 0;
       margin-top: 5px;
       align-self: flex-start;
-      user-select: none;
     }
     .liked-list {
       margin-top: 40px;
-      width: 320px;
-      background: #111827;
-      border-radius: 15px;
-      padding: 15px 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-      user-select: none;
-    }
-    .liked-list h2 {
-      margin-bottom: 15px;
-      font-weight: 600;
-      font-size: 1.3rem;
-      color: #60a5fa;
+      width: 300px;
     }
     .liked-item {
-      display: flex;
-      align-items: center;
       background: #1f2937;
-      padding: 8px 12px;
+      padding: 10px;
       border-radius: 10px;
       margin-bottom: 10px;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-      transition: background 0.3s ease;
-      cursor: default;
     }
-    .liked-item:hover {
-      background: #374151;
-    }
-    .liked-item img {
-      width: 40px;
-      height: 60px;
-      object-fit: cover;
-      border-radius: 6px;
-      margin-right: 12px;
-      flex-shrink: 0;
-    }
-    .reset-btn {
+    #resetBtn {
       margin-top: 20px;
       background: #3b82f6;
       border: none;
@@ -145,68 +114,42 @@
       cursor: pointer;
       box-shadow: 0 5px 15px rgba(59,130,246,0.5);
       transition: background 0.3s ease;
-      user-select: none;
     }
-    .reset-btn:hover {
+    #resetBtn:hover {
       background: #2563eb;
-    }
-    .loading {
-      margin-top: 50px;
-      border: 6px solid #1f2937;
-      border-top: 6px solid #3b82f6;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
   <h1>SwipeFlix 🎬</h1>
   <div class="card-container" id="cardContainer"></div>
-  <button class="reset-btn" id="resetBtn" title="Reset movie list">Reset</button>
+  <button id="resetBtn">Reset</button>
   <div class="liked-list" id="likedList">
     <h2>Liked Movies</h2>
     <div id="likedItems"></div>
   </div>
-  <div id="loading" class="loading" style="display:none;"></div>
 
   <script>
-    // Your API key as per your screenshot
-    const API_KEY = 'dff9120ffa87f905209dfe2b444ab04e';
+    const API_KEY = 'YOUR_TMDB_API_KEY';
     const API_URL = `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US&page=1`;
 
     const cardContainer = document.getElementById('cardContainer');
     const likedItems = document.getElementById('likedItems');
     const resetBtn = document.getElementById('resetBtn');
-    const loading = document.getElementById('loading');
 
     let movies = [];
     let liked = [];
-
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
 
     async function fetchMovies() {
-      loading.style.display = 'block';
-      try {
-        const res = await fetch(API_URL);
-        if (!res.ok) throw new Error('Failed to fetch movies');
-        const data = await res.json();
-        movies = data.results.slice(0, 10);
-        liked = [];
-        updateLikedList();
-        renderCard();
-      } catch (error) {
-        cardContainer.innerHTML = `<p style="color:#f87171;">Error loading movies. Please try again later.</p>`;
-      } finally {
-        loading.style.display = 'none';
-      }
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      movies = data.results.slice(0, 10);
+      liked = [];
+      updateLikedList();
+      renderCard();
     }
 
     function renderCard() {
@@ -221,34 +164,18 @@
         <img src="https://image.tmdb.org/t/p/w500/${movie.poster_path}" alt="${movie.title}" />
         <div class="card-info">
           <h3>${movie.title}</h3>
-          <p id="overview">${movie.overview}</p>
-          <button class="expand-btn" aria-label="Expand movie overview">Read more</button>
+          <p class="movie-overview">${movie.overview}</p>
+          <button class="read-more">Read more</button>
         </div>
       `;
 
-      // Touch events
-      card.addEventListener('touchstart', (e) => {
-        startX = e.touches[0].clientX;
-        isDragging = true;
+      const overview = card.querySelector('.movie-overview');
+      const readMoreBtn = card.querySelector('.read-more');
+      readMoreBtn.addEventListener('click', () => {
+        overview.classList.toggle('expanded');
+        readMoreBtn.textContent = overview.classList.contains('expanded') ? 'Read less' : 'Read more';
       });
 
-      card.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        currentX = e.touches[0].clientX;
-        const deltaX = currentX - startX;
-        card.style.transform = `translateX(${deltaX}px) rotate(${deltaX * 0.1}deg)`;
-      });
-
-      card.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        const deltaX = currentX - startX;
-        if (deltaX > 100) handleSwipe('right', card);
-        else if (deltaX < -100) handleSwipe('left', card);
-        else card.style.transform = 'translateX(0) rotate(0)';
-      });
-
-      // Mouse events for desktop
       card.addEventListener('mousedown', (e) => {
         startX = e.clientX;
         isDragging = true;
@@ -265,23 +192,18 @@
       window.addEventListener('mouseup', () => {
         if (!isDragging) return;
         isDragging = false;
-        card.style.transition = 'transform 0.4s ease';
+        card.style.transition = 'transform 0.4s ease, opacity 0.3s ease';
         const deltaX = currentX - startX;
-        if (deltaX > 100) handleSwipe('right', card);
-        else if (deltaX < -100) handleSwipe('left', card);
-        else card.style.transform = 'translateX(0) rotate(0)';
-      });
-
-      // Expand overview button
-      const expandBtn = card.querySelector('.expand-btn');
-      const overview = card.querySelector('#overview');
-      expandBtn.addEventListener('click', () => {
-        if (overview.classList.contains('expanded')) {
-          overview.classList.remove('expanded');
-          expandBtn.textContent = 'Read more';
+        if (deltaX > 100) {
+          card.style.transform = 'translateX(100vw) rotate(20deg)';
+          card.style.opacity = '0';
+          handleSwipe('right');
+        } else if (deltaX < -100) {
+          card.style.transform = 'translateX(-100vw) rotate(-20deg)';
+          card.style.opacity = '0';
+          handleSwipe('left');
         } else {
-          overview.classList.add('expanded');
-          expandBtn.textContent = 'Read less';
+          card.style.transform = 'translateX(0)';
         }
       });
 
@@ -289,27 +211,18 @@
       cardContainer.appendChild(card);
     }
 
-    function handleSwipe(direction, card) {
+    function handleSwipe(direction) {
       if (direction === 'right') {
         liked.push(movies[0]);
         updateLikedList();
-        card.style.transform = 'translateX(100vw) rotate(30deg)';
-      } else {
-        card.style.transform = 'translateX(-100vw) rotate(-30deg)';
       }
-      card.style.opacity = '0';
-      setTimeout(() => {
-        movies.shift();
-        renderCard();
-      }, 400);
+      movies.shift();
+      setTimeout(renderCard, 300);
     }
 
     function updateLikedList() {
       likedItems.innerHTML = liked.map(movie => `
-        <div class="liked-item" title="${movie.title}">
-          <img src="https://image.tmdb.org/t/p/w92/${movie.poster_path}" alt="${movie.title}" />
-          <span>${movie.title}</span>
-        </div>
+        <div class="liked-item">${movie.title}</div>
       `).join('');
     }
 
