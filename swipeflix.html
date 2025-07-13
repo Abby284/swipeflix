@@ -80,7 +80,7 @@
       flex-grow: 1;
       overflow: hidden;
       transition: max-height 0.3s ease;
-      max-height: 3.6em; /* 3 lines approx */
+      max-height: 3.6em;
       user-select: text;
     }
     .card-info p.expanded {
@@ -176,7 +176,8 @@
   <div id="loading" class="loading" style="display:none;"></div>
 
   <script>
-    const API_KEY = 'YOUR_TMDB_API_KEY';
+    // Your API key as per your screenshot
+    const API_KEY = 'dff9120ffa87f905209dfe2b444ab04e';
     const API_URL = `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US&page=1`;
 
     const cardContainer = document.getElementById('cardContainer');
