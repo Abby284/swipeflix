@@ -86,6 +86,11 @@
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
     }
+    @media (hover: none) and (pointer: coarse) {
+      .swipe-buttons {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -103,16 +108,14 @@
       <option value="sad">Sad</option>
       <option value="romantic">Romantic</option>
       <option value="thrilling">Thrilling</option>
+      <option value="violent">Violent</option>
+      <option value="horny">Horny</option>
     </select>
     <button onclick="submitMood()">Submit Mood</button>
   </div>
 
   <div class="card-container" id="cardContainer">
     <div class="card" id="movieCard">Loading...</div>
-    <div class="swipe-buttons">
-      <button onclick="dislikeMovie()">👎 Dislike</button>
-      <button onclick="likeMovie()">👍 Like</button>
-    </div>
   </div>
 
   <script>
@@ -125,6 +128,15 @@
     let currentIndex = 0;
     let movies = [];
     let shownIds = new Set();
+
+    const genreMap = {
+      happy: [35, 16], // Comedy, Animation
+      sad: [18], // Drama
+      romantic: [10749], // Romance
+      thrilling: [53, 28], // Thriller, Action
+      violent: [27, 28, 80], // Horror, Action, Crime
+      horny: [10749, 18] // Romance, Drama (adult implied)
+    };
 
     function loginUser() {
       const email = document.getElementById('email').value;
@@ -151,14 +163,10 @@
     }
 
     function fetchMovies() {
-      const genreMap = {
-        happy: 35,
-        sad: 18,
-        romantic: 10749,
-        thrilling: 53
-      };
-      const genreId = genreMap[mood] || 18;
-      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreId}&page=${page}`)
+      const genres = genreMap[mood] || [18];
+      const genreParam = genres.map(g => `with_genres=${g}`).join('&');
+
+      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&${genreParam}&sort_by=popularity.desc&include_adult=${mood === 'horny'}&page=${page}`)
         .then(res => {
           if (!res.ok) throw new Error("Network response was not ok");
           return res.json();
@@ -197,6 +205,26 @@
         <h3>${movie.title}</h3>
         <p>${movie.overview || 'No description available.'}</p>
       `;
+      card.ontouchstart = handleTouchStart;
+      card.ontouchmove = handleTouchMove;
+      card.ontouchend = handleTouchEnd;
+    }
+
+    let xStart = null;
+    function handleTouchStart(e) {
+      xStart = e.touches[0].clientX;
+    }
+    function handleTouchMove(e) {
+      if (!xStart) return;
+      const xEnd = e.touches[0].clientX;
+      const diff = xStart - xEnd;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) dislikeMovie(); else likeMovie();
+        xStart = null;
+      }
+    }
+    function handleTouchEnd() {
+      xStart = null;
     }
 
     function likeMovie() {
