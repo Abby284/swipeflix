@@ -55,87 +55,97 @@
     <button class="like" onclick="handleLike()">💗 Like</button>
   </div>
 
-  <script>
-    const API_KEY = '0d056e1910c8b138b66596088c28472c';
-    const BASE_URL = 'https://api.themoviedb.org/3';
-    const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+<script>
+  const API_KEY = '0d056e1910c8b138b66596088c28472c';
+  const BASE_URL = 'https://api.themoviedb.org/3';
+  const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
-    let movies = [];
-    let currentIndex = 0;
-    let likedGenres = {};
+  let movies = [];
+  let currentIndex = 0;
+  let likedGenres = {};
+  const shownMovieIds = new Set();
 
-    async function fetchTrendingMovies() {
-      const response = await fetch(`${BASE_URL}/trending/movie/week?api_key=${API_KEY}`);
-      const data = await response.json();
-      movies = data.results;
-      currentIndex = 0;
+  async function fetchTrendingMovies() {
+    const response = await fetch(`${BASE_URL}/trending/movie/week?api_key=${API_KEY}`);
+    const data = await response.json();
+    const filtered = data.results.filter(movie => !shownMovieIds.has(movie.id));
+    movies = filtered;
+    currentIndex = 0;
+    showMovie();
+  }
+
+  async function fetchRecommendedMovies() {
+    const sortedGenres = Object.entries(likedGenres)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => id);
+
+    if (sortedGenres.length === 0) {
+      return fetchTrendingMovies();
+    }
+
+    const genreString = sortedGenres.slice(0, 3).join(',');
+    const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreString}`);
+    const data = await response.json();
+    const filtered = data.results.filter(movie => !shownMovieIds.has(movie.id));
+    movies = filtered;
+    currentIndex = 0;
+    showMovie();
+  }
+
+  function showMovie() {
+    const card = document.getElementById('movie-card');
+    card.innerHTML = '';
+
+    if (currentIndex >= movies.length) {
+      card.innerHTML = '<p>No more movies! 🎉</p>';
+      return;
+    }
+
+    const movie = movies[currentIndex];
+    shownMovieIds.add(movie.id); // Mark as shown
+
+    const img = document.createElement('img');
+    img.src = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : '';
+    img.alt = 'Movie Poster';
+    img.className = 'poster';
+    img.onerror = () => img.style.display = 'none';
+
+    const title = document.createElement('h2');
+    title.textContent = movie.title;
+
+    const overview = document.createElement('p');
+    overview.textContent = movie.overview;
+
+    card.appendChild(img);
+    card.appendChild(title);
+    card.appendChild(overview);
+  }
+
+  function handleLike() {
+    const movie = movies[currentIndex];
+    if (movie.genre_ids) {
+      for (const id of movie.genre_ids) {
+        likedGenres[id] = (likedGenres[id] || 0) + 1;
+      }
+    }
+    nextMovie();
+  }
+
+  function handleDislike() {
+    nextMovie();
+  }
+
+  function nextMovie() {
+    currentIndex++;
+    if (currentIndex >= movies.length) {
+      fetchRecommendedMovies();
+    } else {
       showMovie();
     }
+  }
 
-    async function fetchRecommendedMovies() {
-      const sortedGenres = Object.entries(likedGenres).sort((a, b) => b[1] - a[1]).map(([id]) => id);
-      if (sortedGenres.length === 0) return fetchTrendingMovies();
+  fetchTrendingMovies();
+</script>
 
-      const genreString = sortedGenres.slice(0, 3).join(',');
-      const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreString}`);
-      const data = await response.json();
-      movies = data.results;
-      currentIndex = 0;
-      showMovie();
-    }
-
-    function showMovie() {
-      const card = document.getElementById('movie-card');
-      card.innerHTML = '';
-
-      if (currentIndex >= movies.length) {
-        card.innerHTML = '<p>No more movies!</p>';
-        return;
-      }
-
-      const movie = movies[currentIndex];
-
-      const img = document.createElement('img');
-      img.src = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : '';
-      img.alt = 'Movie Poster';
-      img.className = 'poster';
-      img.onerror = () => img.style.display = 'none';
-
-      const title = document.createElement('h2');
-      title.textContent = movie.title;
-
-      const overview = document.createElement('p');
-      overview.textContent = movie.overview;
-
-      card.appendChild(img);
-      card.appendChild(title);
-      card.appendChild(overview);
-    }
-
-    function handleLike() {
-      const movie = movies[currentIndex];
-      if (movie.genre_ids) {
-        for (const id of movie.genre_ids) {
-          likedGenres[id] = (likedGenres[id] || 0) + 1;
-        }
-      }
-      nextMovie();
-    }
-
-    function handleDislike() {
-      nextMovie();
-    }
-
-    function nextMovie() {
-      currentIndex++;
-      if (currentIndex >= movies.length) {
-        fetchRecommendedMovies();
-      } else {
-        showMovie();
-      }
-    }
-
-    fetchTrendingMovies();
-  </script>
 </body>
 </html>
