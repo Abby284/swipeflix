@@ -7,173 +7,215 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to bottom right, #111, #333);
+      color: #fff;
+      margin: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background: linear-gradient(135deg, #1e1e2f, #3a3a4f);
-      color: #f0f0f0;
-      margin: 0;
-      overflow: hidden;
+      padding: 20px;
     }
     h1 {
-      margin-bottom: 30px;
       font-size: 2.5rem;
       color: #ff4b5c;
+      margin-bottom: 2rem;
     }
-    .card-container {
-      position: relative;
-      width: 300px;
-      height: 450px;
-      perspective: 1000px;
+    .login-container, .mood-container, .card-container {
+      width: 90%;
+      max-width: 420px;
+      background: #222;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      text-align: center;
+      display: none;
     }
-    .card {
-      position: absolute;
+    .active {
+      display: block;
+    }
+    input, select, button {
       width: 100%;
-      height: 100%;
-      border-radius: 20px;
-      background: #fff;
-      color: #000;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-      transition: transform 0.4s ease, opacity 0.4s ease;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    .card img {
-      width: 100%;
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
-    .buttons {
-      margin-top: 20px;
-      display: flex;
-      gap: 20px;
-    }
-    button {
-      padding: 12px 24px;
-      font-size: 18px;
+      margin: 12px 0;
+      padding: 14px;
       border: none;
       border-radius: 10px;
+      font-size: 1rem;
+    }
+    input, select {
+      background: #444;
+      color: #fff;
+    }
+    button {
+      background-color: #ff4b5c;
+      color: white;
       cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .like {
-      background-color: #4CAF50;
-      color: white;
-    }
-    .dislike {
-      background-color: #f44336;
-      color: white;
+      font-weight: bold;
+      transition: background 0.3s;
     }
     button:hover {
-      transform: scale(1.05);
+      background-color: #ff1c3c;
+    }
+    .card {
+      background: #fff;
+      color: #000;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      position: relative;
+      width: 100%;
+      height: auto;
+      animation: fadeIn 0.4s ease;
+    }
+    .card img {
+      max-width: 100%;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .swipe-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    .swipe-buttons button {
+      width: 48%;
+      background: #3f51b5;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
 <body>
   <h1>SwipeFlix 🎬</h1>
-  <div class="card-container">
-    <div class="card" id="movie-card">
-      <p>Loading...</p>
-    </div>
+
+  <div class="login-container active" id="loginContainer">
+    <input type="email" id="email" placeholder="Enter email" required>
+    <input type="password" id="password" placeholder="Enter password" required>
+    <button onclick="loginUser()">Login</button>
   </div>
-  <div class="buttons">
-    <button class="dislike" onclick="handleDislike()">👎</button>
-    <button class="like" onclick="handleLike()">💗</button>
+
+  <div class="mood-container" id="moodContainer">
+    <select id="moodSelect">
+      <option value="happy">Happy</option>
+      <option value="sad">Sad</option>
+      <option value="romantic">Romantic</option>
+      <option value="thrilling">Thrilling</option>
+    </select>
+    <button onclick="submitMood()">Submit Mood</button>
+  </div>
+
+  <div class="card-container" id="cardContainer">
+    <div class="card" id="movieCard">Loading...</div>
+    <div class="swipe-buttons">
+      <button onclick="dislikeMovie()">👎 Dislike</button>
+      <button onclick="likeMovie()">👍 Like</button>
+    </div>
   </div>
 
   <script>
-    const API_KEY = '0d056e1910c8b138b66596088c28472c';
     const BASE_URL = 'https://api.themoviedb.org/3';
+    const API_KEY = '0d056e1910c8b138b66596088c28472c';
     const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
-    let movies = [];
+    let mood = '';
+    let page = 1;
     let currentIndex = 0;
-    let likedGenres = {};
-    const shownMovieIds = new Set();
-    let currentPage = 1;
+    let movies = [];
+    let shownIds = new Set();
 
-    async function fetchTrendingMovies(page = 1) {
-      const response = await fetch(`${BASE_URL}/trending/movie/week?api_key=${API_KEY}&page=${page}`);
-      const data = await response.json();
-      const filtered = data.results.filter(movie => !shownMovieIds.has(movie.id));
-      if (filtered.length === 0 && page < 5) return fetchTrendingMovies(page + 1);
-      movies = filtered;
-      currentIndex = 0;
-      showMovie();
+    function loginUser() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      if (email && password) {
+        localStorage.setItem('userEmail', email);
+        document.getElementById('loginContainer').classList.remove('active');
+        document.getElementById('moodContainer').classList.add('active');
+      } else {
+        alert("Please enter valid credentials.");
+      }
     }
 
-    async function fetchRecommendedMovies(page = 1) {
-      const sortedGenres = Object.entries(likedGenres).sort((a, b) => b[1] - a[1]).map(([id]) => id);
-      if (sortedGenres.length === 0) return fetchTrendingMovies(currentPage);
-      const genreString = sortedGenres.slice(0, 3).join(',');
-      const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreString}&page=${page}`);
-      const data = await response.json();
-      const filtered = data.results.filter(movie => !shownMovieIds.has(movie.id));
-      if (filtered.length === 0 && page < 5) return fetchRecommendedMovies(page + 1);
-      movies = filtered;
+    function submitMood() {
+      mood = document.getElementById('moodSelect').value;
+      localStorage.setItem('lastMood', mood);
+      document.getElementById('moodContainer').classList.remove('active');
+      document.getElementById('cardContainer').classList.add('active');
+      page = 1;
       currentIndex = 0;
-      showMovie();
+      shownIds.clear();
+      movies = [];
+      fetchMovies();
+    }
+
+    function fetchMovies() {
+      const genreMap = {
+        happy: 35,
+        sad: 18,
+        romantic: 10749,
+        thrilling: 53
+      };
+      const genreId = genreMap[mood] || 18;
+      fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreId}&page=${page}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Network response was not ok");
+          return res.json();
+        })
+        .then(data => {
+          if (!data.results || data.results.length === 0) {
+            document.getElementById('movieCard').innerText = 'No more movies found.';
+            return;
+          }
+          const newMovies = data.results.filter(m => !shownIds.has(m.id));
+          if (newMovies.length === 0) {
+            page++;
+            fetchMovies();
+            return;
+          }
+          movies = movies.concat(newMovies);
+          showMovie();
+        })
+        .catch(error => {
+          console.error('Error fetching movies:', error);
+          document.getElementById('movieCard').innerText = 'Error loading movies.';
+        });
     }
 
     function showMovie() {
-      const card = document.getElementById('movie-card');
-      card.innerHTML = '';
-
+      const card = document.getElementById('movieCard');
       if (currentIndex >= movies.length) {
-        card.innerHTML = '<p>No more movies available! Please refresh later.</p>';
+        page++;
+        fetchMovies();
         return;
       }
-
       const movie = movies[currentIndex];
-      shownMovieIds.add(movie.id);
-
-      const img = document.createElement('img');
-      img.src = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : '';
-      img.alt = 'Movie Poster';
-      img.onerror = () => img.style.display = 'none';
-
-      const title = document.createElement('h2');
-      title.textContent = movie.title;
-
-      const overview = document.createElement('p');
-      overview.textContent = movie.overview;
-
-      card.appendChild(img);
-      card.appendChild(title);
-      card.appendChild(overview);
+      shownIds.add(movie.id);
+      card.innerHTML = `
+        <img src="${IMAGE_BASE + movie.poster_path}" alt="${movie.title}">
+        <h3>${movie.title}</h3>
+        <p>${movie.overview || 'No description available.'}</p>
+      `;
     }
 
-    function handleLike() {
-      const movie = movies[currentIndex];
-      if (movie.genre_ids) {
-        for (const id of movie.genre_ids) {
-          likedGenres[id] = (likedGenres[id] || 0) + 1;
-        }
-      }
-      nextMovie();
-    }
-
-    function handleDislike() {
-      nextMovie();
-    }
-
-    function nextMovie() {
+    function likeMovie() {
       currentIndex++;
-      if (currentIndex >= movies.length) {
-        currentPage++;
-        fetchRecommendedMovies(currentPage);
-      } else {
-        showMovie();
-      }
+      showMovie();
     }
 
-    fetchTrendingMovies(currentPage);
+    function dislikeMovie() {
+      currentIndex++;
+      showMovie();
+    }
+
+    window.onload = () => {
+      const userEmail = localStorage.getItem('userEmail');
+      if (userEmail) {
+        document.getElementById('loginContainer').classList.remove('active');
+        document.getElementById('moodContainer').classList.add('active');
+      }
+    };
   </script>
 </body>
 </html>
