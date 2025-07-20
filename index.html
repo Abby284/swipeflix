@@ -151,7 +151,7 @@
   </div>
 
   <script>
-    const API_KEY = 'dff9120ffa87f905209dfe2b444ab04e';
+    const API_KEY = '0d056e1910c8b138b66596088c28472c';
     const API_URL = `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US&page=1`;
 
     const cardContainer = document.getElementById('cardContainer');
@@ -169,12 +169,14 @@
       loadingSpinner.style.display = 'block';
       try {
         const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         movies = data.results.slice(0, 10);
         liked = [];
         updateLikedList();
         renderCard();
       } catch (err) {
+        console.error("Movie fetch error:", err);
         cardContainer.innerHTML = '<p>Error fetching movies.</p>';
       } finally {
         loadingSpinner.style.display = 'none';
@@ -182,10 +184,15 @@
     }
 
     async function fetchYouTubeTrailer(title) {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(title + ' trailer')}&type=video&key=AIzaSyBVOOYyK0rwKvDdi1zpBceefP_RRKWXqNA`);
-      const data = await res.json();
-      const videoId = data.items?.[0]?.id?.videoId;
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+      try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(title + ' trailer')}&type=video&key=AIzaSyBVOOYyK0rwKvDdi1zpBceefP_RRKWXqNA`);
+        const data = await res.json();
+        const videoId = data.items?.[0]?.id?.videoId;
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+      } catch (error) {
+        console.error('YouTube trailer fetch error:', error);
+        return null;
+      }
     }
 
     async function renderCard() {
