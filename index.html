@@ -1,182 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SwipeFlix 🎬</title>
   <style>
     body {
-      background-color: #111;
-      color: white;
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 2rem;
-    }
-    h1 {
-      margin-bottom: 1rem;
-    }
-    #movie-card {
-      position: relative;
-      width: 300px;
-      height: 450px;
-      background-color: #222;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      margin-bottom: 1rem;
-      user-select: none;
-      transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-    }
-    #movie-card img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    #movie-title {
-      background-color: rgba(0, 0, 0, 0.7);
-      width: 100%;
-      padding: 1rem;
-      font-weight: bold;
+      font-family: Arial, sans-serif;
       text-align: center;
-      z-index: 2;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .card {
+      max-width: 300px;
+      margin: 0 auto;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      border-radius: 10px;
+      background-color: white;
+    }
+    .poster {
+      width: 100%;
+      border-radius: 10px;
     }
     .buttons {
+      margin-top: 20px;
       display: flex;
-      gap: 1rem;
+      justify-content: space-around;
     }
     button {
-      padding: 0.5rem 1rem;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
       border: none;
-      border-radius: 8px;
-      font-weight: bold;
       cursor: pointer;
-      font-size: 1rem;
     }
     .like {
-      background-color: #00c853;
+      background-color: #4CAF50;
       color: white;
     }
     .dislike {
-      background-color: #d50000;
+      background-color: #f44336;
       color: white;
     }
   </style>
 </head>
 <body>
   <h1>SwipeFlix 🎬</h1>
-  <div id="movie-card">
-    <img id="poster" src="" alt="Movie Poster">
-    <div id="movie-title">Loading...</div>
+  <div class="card" id="movie-card">
+    <p>Loading...</p>
   </div>
   <div class="buttons">
-    <button class="dislike" onclick="swipe('left')">👎 Dislike</button>
-    <button class="like" onclick="swipe('right')">❤️ Like</button>
+    <button class="dislike" onclick="handleDislike()">👎 Dislike</button>
+    <button class="like" onclick="handleLike()">💗 Like</button>
   </div>
 
   <script>
-    const apiKey = 'YOUR_API_KEY_HERE'; // <- Replace with your actual TMDB API key
-    const genreLikes = {};
+    const API_KEY = '0d056e1910c8b138b66596088c28472c';
+    const BASE_URL = 'https://api.themoviedb.org/3';
+    const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+
     let movies = [];
     let currentIndex = 0;
+    let likedGenres = {};
 
-    const card = document.getElementById('movie-card');
-    const poster = document.getElementById('poster');
-    const title = document.getElementById('movie-title');
-
-    async function fetchMovies() {
-      const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${apiKey}`);
-      const data = await res.json();
-      movies = data.results.filter(movie => movie.poster_path);
+    async function fetchTrendingMovies() {
+      const response = await fetch(`${BASE_URL}/trending/movie/week?api_key=${API_KEY}`);
+      const data = await response.json();
+      movies = data.results;
       currentIndex = 0;
       showMovie();
     }
 
-    async function fetchByGenres() {
-      const topGenres = Object.entries(genreLikes)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 2)
-        .map(([id]) => id)
-        .join(',');
-      const res = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_genres=${topGenres}`);
-      const data = await res.json();
-      movies = data.results.filter(movie => movie.poster_path);
+    async function fetchRecommendedMovies() {
+      const sortedGenres = Object.entries(likedGenres).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+      if (sortedGenres.length === 0) return fetchTrendingMovies();
+
+      const genreString = sortedGenres.slice(0, 3).join(',');
+      const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreString}`);
+      const data = await response.json();
+      movies = data.results;
       currentIndex = 0;
       showMovie();
     }
 
     function showMovie() {
+      const card = document.getElementById('movie-card');
+      card.innerHTML = '';
+
       if (currentIndex >= movies.length) {
-        title.textContent = 'Loading more...';
-        fetchByGenres();
+        card.innerHTML = '<p>No more movies!</p>';
         return;
       }
+
       const movie = movies[currentIndex];
-      poster.src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
-      title.textContent = movie.title || movie.name || 'Untitled';
+
+      const img = document.createElement('img');
+      img.src = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : '';
+      img.alt = 'Movie Poster';
+      img.className = 'poster';
+      img.onerror = () => img.style.display = 'none';
+
+      const title = document.createElement('h2');
+      title.textContent = movie.title;
+
+      const overview = document.createElement('p');
+      overview.textContent = movie.overview;
+
+      card.appendChild(img);
+      card.appendChild(title);
+      card.appendChild(overview);
     }
 
-    function likeMovie() {
+    function handleLike() {
       const movie = movies[currentIndex];
-      (movie.genre_ids || []).forEach(id => {
-        genreLikes[id] = (genreLikes[id] || 0) + 1;
-      });
+      if (movie.genre_ids) {
+        for (const id of movie.genre_ids) {
+          likedGenres[id] = (likedGenres[id] || 0) + 1;
+        }
+      }
+      nextMovie();
     }
 
-    function swipe(direction) {
-      if (direction === 'right') likeMovie();
+    function handleDislike() {
+      nextMovie();
+    }
 
-      // Swipe animation
-      card.style.transform = `translateX(${direction === 'right' ? 200 : -200}px)`;
-      card.style.opacity = 0;
-
-      setTimeout(() => {
-        card.style.transition = 'none';
-        card.style.transform = 'translateX(0)';
-        card.style.opacity = 1;
-        card.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
-        currentIndex++;
+    function nextMovie() {
+      currentIndex++;
+      if (currentIndex >= movies.length) {
+        fetchRecommendedMovies();
+      } else {
         showMovie();
-      }, 300);
+      }
     }
 
-    // Touch support
-    let startX = 0;
-    card.addEventListener('touchstart', (e) => {
-      startX = e.touches[0].clientX;
-    });
-    card.addEventListener('touchend', (e) => {
-      const diff = e.changedTouches[0].clientX - startX;
-      if (diff > 80) swipe('right');
-      else if (diff < -80) swipe('left');
-    });
-
-    // Mouse drag support
-    let isDragging = false;
-    card.addEventListener('mousedown', (e) => {
-      startX = e.clientX;
-      isDragging = true;
-    });
-    document.addEventListener('mouseup', (e) => {
-      if (!isDragging) return;
-      const diff = e.clientX - startX;
-      if (diff > 80) swipe('right');
-      else if (diff < -80) swipe('left');
-      isDragging = false;
-    });
-
-    fetchMovies();
+    fetchTrendingMovies();
   </script>
 </body>
 </html>
