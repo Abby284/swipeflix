@@ -3,140 +3,159 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SwipeFlix - Personalized Movie Recommender</title>
+  <title>SwipeFlix 🎬</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
       background-color: #111;
-      color: #fff;
-      text-align: center;
-      padding: 20px;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
     }
-    #cardContainer {
-      width: 300px;
-      margin: 20px auto;
+    h1 {
+      margin-top: 1rem;
+    }
+    #movie-card {
       position: relative;
-    }
-    .card {
-      width: 100%;
+      width: 300px;
+      height: 450px;
+      background-color: #222;
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-      background-color: #222;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 2rem;
+      user-select: none;
+      transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    #movie-card img {
       position: absolute;
       top: 0;
       left: 0;
-      transition: transform 0.3s ease;
-    }
-    .card img {
       width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
     }
-    .liked-list {
-      margin-top: 20px;
-      text-align: left;
-      max-width: 300px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .liked-list li {
-      list-style: none;
-      border-bottom: 1px solid #333;
-      padding: 5px;
-    }
-    #loadingSpinner {
-      margin-top: 20px;
-      display: none;
+    #movie-title {
+      background-color: rgba(0, 0, 0, 0.6);
+      width: 100%;
+      padding: 1rem;
+      font-weight: bold;
+      text-align: center;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
   <h1>SwipeFlix 🎬</h1>
-  <div id="cardContainer"></div>
-  <div id="loadingSpinner">Loading...</div>
-  <h2>Liked Movies</h2>
-  <ul id="likedItems" class="liked-list"></ul>
+  <div id="movie-card">
+    <img id="poster" src="" alt="Movie Poster">
+    <div id="movie-title"></div>
+  </div>
 
   <script>
-    const API_KEY = '0d056e1910c8b138b66596088c28472c';
-    const cardContainer = document.getElementById('cardContainer');
-    const likedItems = document.getElementById('likedItems');
-    const loadingSpinner = document.getElementById('loadingSpinner');
-
+    const apiKey = 'YOUR_API_KEY_HERE';
+    const genreLikes = {}; // { genreId: count }
     let movies = [];
-    let liked = [];
-    let likedGenres = {};
-    let seenMovieIds = new Set();
+    let currentIndex = 0;
 
-    async function fetchMovies(preferredGenres = []) {
-      loadingSpinner.style.display = 'block';
-      let url;
-      if (preferredGenres.length > 0) {
-        url = `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&with_genres=${preferredGenres.join(',')}`;
-      } else {
-        url = `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US&page=1`;
+    const card = document.getElementById('movie-card');
+    const poster = document.getElementById('poster');
+    const title = document.getElementById('movie-title');
+
+    async function fetchTrendingMovies() {
+      const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${apiKey}`);
+      const data = await res.json();
+      movies = data.results;
+      currentIndex = 0;
+      showMovie();
+    }
+
+    async function fetchByGenres() {
+      const topGenres = Object.entries(genreLikes)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([genreId]) => genreId)
+        .join(',');
+      const res = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_genres=${topGenres}`);
+      const data = await res.json();
+      movies = data.results;
+      currentIndex = 0;
+      showMovie();
+    }
+
+    function showMovie() {
+      if (currentIndex >= movies.length) {
+        title.textContent = 'Loading more...';
+        fetchByGenres();
+        return;
       }
+      const movie = movies[currentIndex];
+      poster.src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+      title.textContent = movie.title || movie.name;
+    }
 
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        movies = data.results.filter(m => !seenMovieIds.has(m.id)).slice(0, 10);
-        renderCard();
-      } catch (err) {
-        console.error('Fetch error:', err);
-      } finally {
-        loadingSpinner.style.display = 'none';
+    function likeMovie() {
+      const movie = movies[currentIndex];
+      if (movie.genre_ids) {
+        for (let id of movie.genre_ids) {
+          genreLikes[id] = (genreLikes[id] || 0) + 1;
+        }
       }
     }
 
-    function updateLikedList() {
-      likedItems.innerHTML = liked.map(movie => `<li>${movie.title}</li>`).join('');
-    }
-
-    function handleSwipe(direction, movie) {
-      seenMovieIds.add(movie.id);
+    function swipe(direction) {
       if (direction === 'right') {
-        liked.push(movie);
-        movie.genre_ids.forEach(id => {
-          likedGenres[id] = (likedGenres[id] || 0) + 1;
-        });
-        updateLikedList();
+        likeMovie();
       }
-
-      if (movies.length > 0) {
-        renderCard();
-      } else {
-        const topGenres = Object.entries(likedGenres)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(entry => entry[0]);
-
-        fetchMovies(topGenres);
-      }
+      card.style.transform = `translateX(${direction === 'right' ? '300px' : '-300px'})`;
+      card.style.opacity = 0;
+      setTimeout(() => {
+        card.style.transition = 'none';
+        card.style.transform = 'translateX(0)';
+        card.style.opacity = 1;
+        card.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+        currentIndex++;
+        showMovie();
+      }, 300);
     }
 
-    function renderCard() {
-      cardContainer.innerHTML = '';
-      if (movies.length === 0) return;
-      const movie = movies.pop();
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title}" />
-        <h3>${movie.title}</h3>
-      `;
-      cardContainer.appendChild(card);
+    // Swipe detection
+    let startX;
+    card.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+    });
+    card.addEventListener('touchend', (e) => {
+      const endX = e.changedTouches[0].clientX;
+      const diff = endX - startX;
+      if (diff > 100) swipe('right');
+      else if (diff < -100) swipe('left');
+    });
 
-      let startX = 0;
-      card.addEventListener('touchstart', e => startX = e.touches[0].clientX);
-      card.addEventListener('touchend', e => {
-        const endX = e.changedTouches[0].clientX;
-        if (endX - startX > 50) handleSwipe('right', movie);
-        else if (startX - endX > 50) handleSwipe('left', movie);
-        else renderCard();
-      });
-    }
+    // Mouse support
+    let isDragging = false;
+    card.addEventListener('mousedown', (e) => {
+      startX = e.clientX;
+      isDragging = true;
+    });
+    document.addEventListener('mouseup', (e) => {
+      if (!isDragging) return;
+      const endX = e.clientX;
+      const diff = endX - startX;
+      if (diff > 100) swipe('right');
+      else if (diff < -100) swipe('left');
+      isDragging = false;
+    });
 
-    fetchMovies();
+    fetchTrendingMovies();
   </script>
 </body>
 </html>
