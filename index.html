@@ -6,34 +6,61 @@
   <title>SwipeFlix 🎬</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
-      background-color: #f5f5f5;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e1e2f, #3a3a4f);
+      color: #f0f0f0;
+      margin: 0;
+      overflow: hidden;
+    }
+    h1 {
+      margin-bottom: 30px;
+      font-size: 2.5rem;
+      color: #ff4b5c;
+    }
+    .card-container {
+      position: relative;
+      width: 300px;
+      height: 450px;
+      perspective: 1000px;
     }
     .card {
-      max-width: 300px;
-      margin: 0 auto;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      background: #fff;
+      color: #000;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
       padding: 20px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      border-radius: 10px;
-      background-color: white;
+      overflow-y: auto;
     }
-    .poster {
+    .card img {
       width: 100%;
       border-radius: 10px;
+      margin-bottom: 15px;
     }
     .buttons {
       margin-top: 20px;
       display: flex;
-      justify-content: space-around;
+      gap: 20px;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 5px;
+      padding: 12px 24px;
+      font-size: 18px;
       border: none;
+      border-radius: 10px;
       cursor: pointer;
+      transition: transform 0.2s;
     }
     .like {
       background-color: #4CAF50;
@@ -43,16 +70,21 @@
       background-color: #f44336;
       color: white;
     }
+    button:hover {
+      transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
   <h1>SwipeFlix 🎬</h1>
-  <div class="card" id="movie-card">
-    <p>Loading...</p>
+  <div class="card-container">
+    <div class="card" id="movie-card">
+      <p>Loading...</p>
+    </div>
   </div>
   <div class="buttons">
-    <button class="dislike" onclick="handleDislike()">👎 Dislike</button>
-    <button class="like" onclick="handleLike()">💗 Like</button>
+    <button class="dislike" onclick="handleDislike()">👎</button>
+    <button class="like" onclick="handleLike()">💗</button>
   </div>
 
   <script>
@@ -70,30 +102,20 @@
       const response = await fetch(`${BASE_URL}/trending/movie/week?api_key=${API_KEY}&page=${page}`);
       const data = await response.json();
       const filtered = data.results.filter(movie => !shownMovieIds.has(movie.id));
-      if (filtered.length === 0 && page < 5) {
-        return fetchTrendingMovies(page + 1); // load next page if current is empty
-      }
+      if (filtered.length === 0 && page < 5) return fetchTrendingMovies(page + 1);
       movies = filtered;
       currentIndex = 0;
       showMovie();
     }
 
     async function fetchRecommendedMovies(page = 1) {
-      const sortedGenres = Object.entries(likedGenres)
-        .sort((a, b) => b[1] - a[1])
-        .map(([id]) => id);
-
-      if (sortedGenres.length === 0) {
-        return fetchTrendingMovies(currentPage);
-      }
-
+      const sortedGenres = Object.entries(likedGenres).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+      if (sortedGenres.length === 0) return fetchTrendingMovies(currentPage);
       const genreString = sortedGenres.slice(0, 3).join(',');
       const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${genreString}&page=${page}`);
       const data = await response.json();
       const filtered = data.results.filter(movie => !shownMovieIds.has(movie.id));
-      if (filtered.length === 0 && page < 5) {
-        return fetchRecommendedMovies(page + 1); // try next page if empty
-      }
+      if (filtered.length === 0 && page < 5) return fetchRecommendedMovies(page + 1);
       movies = filtered;
       currentIndex = 0;
       showMovie();
@@ -104,7 +126,7 @@
       card.innerHTML = '';
 
       if (currentIndex >= movies.length) {
-        card.innerHTML = '<p>No more movies available! Please refresh the page later for more.</p>';
+        card.innerHTML = '<p>No more movies available! Please refresh later.</p>';
         return;
       }
 
@@ -114,7 +136,6 @@
       const img = document.createElement('img');
       img.src = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : '';
       img.alt = 'Movie Poster';
-      img.className = 'poster';
       img.onerror = () => img.style.display = 'none';
 
       const title = document.createElement('h2');
