@@ -13,14 +13,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: start;
       min-height: 100vh;
       padding: 20px;
     }
-    h1 {
+    header {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+    header h1 {
       font-size: 2.5rem;
       color: #ff4b5c;
-      margin-bottom: 2rem;
+      margin: 0;
     }
     .login-container, .mood-container, .card-container {
       width: 90%;
@@ -72,6 +78,7 @@
       max-width: 100%;
       border-radius: 10px;
       margin-bottom: 10px;
+      cursor: pointer;
     }
     .swipe-buttons {
       display: flex;
@@ -94,7 +101,9 @@
   </style>
 </head>
 <body>
-  <h1>SwipeFlix 🎬</h1>
+  <header onclick="goHome()">
+    <h1>SwipeFlix 🎬</h1>
+  </header>
 
   <div class="login-container active" id="loginContainer">
     <input type="email" id="email" placeholder="Enter email" required>
@@ -130,12 +139,12 @@
     let shownIds = new Set();
 
     const genreMap = {
-      happy: [35, 16], // Comedy, Animation
-      sad: [18], // Drama
-      romantic: [10749], // Romance
-      thrilling: [53, 28], // Thriller, Action
-      violent: [27, 28, 80], // Horror, Action, Crime
-      horny: [10749, 18] // Romance, Drama (adult implied)
+      happy: [35, 16],
+      sad: [18],
+      romantic: [10749],
+      thrilling: [53, 28],
+      violent: [27, 28, 80],
+      horny: [10749, 18]
     };
 
     function loginUser() {
@@ -167,10 +176,7 @@
       const genreParam = genres.map(g => `with_genres=${g}`).join('&');
 
       fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&${genreParam}&sort_by=popularity.desc&include_adult=${mood === 'horny'}&page=${page}`)
-        .then(res => {
-          if (!res.ok) throw new Error("Network response was not ok");
-          return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
           if (!data.results || data.results.length === 0) {
             document.getElementById('movieCard').innerText = 'No more movies found.';
@@ -201,13 +207,28 @@
       const movie = movies[currentIndex];
       shownIds.add(movie.id);
       card.innerHTML = `
-        <img src="${IMAGE_BASE + movie.poster_path}" alt="${movie.title}">
+        <img src="${IMAGE_BASE + movie.poster_path}" alt="${movie.title}" onclick="redirectToBooking('${movie.title}')">
         <h3>${movie.title}</h3>
         <p>${movie.overview || 'No description available.'}</p>
+        <div class="swipe-buttons">
+          <button onclick="dislikeMovie()">Dislike</button>
+          <button onclick="likeMovie()">Like</button>
+        </div>
       `;
       card.ontouchstart = handleTouchStart;
       card.ontouchmove = handleTouchMove;
       card.ontouchend = handleTouchEnd;
+    }
+
+    function redirectToBooking(title) {
+      const encodedTitle = encodeURIComponent(title + ' movie tickets');
+      const region = (navigator.language || 'en-IN').toLowerCase();
+      const base = region.includes('in') ? 'https://in.bookmyshow.com/explore/movies' : `https://www.google.com/search?q=${encodedTitle}`;
+      window.open(base, '_blank');
+    }
+
+    function goHome() {
+      window.location.reload();
     }
 
     let xStart = null;
@@ -223,19 +244,10 @@
         xStart = null;
       }
     }
-    function handleTouchEnd() {
-      xStart = null;
-    }
+    function handleTouchEnd() { xStart = null; }
 
-    function likeMovie() {
-      currentIndex++;
-      showMovie();
-    }
-
-    function dislikeMovie() {
-      currentIndex++;
-      showMovie();
-    }
+    function likeMovie() { currentIndex++; showMovie(); }
+    function dislikeMovie() { currentIndex++; showMovie(); }
 
     window.onload = () => {
       const userEmail = localStorage.getItem('userEmail');
